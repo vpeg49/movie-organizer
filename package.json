@@ -1,0 +1,14 @@
+{
+  "name": "movie-organizer",
+  "version": "1.0.0",
+  "description": "Organiza tu colección de películas consultando TMDB",
+  "type": "module",
+  "scripts": {
+    "migrate": "node src/index.js --migrate",
+    "inbox": "node src/index.js --inbox",
+    "dry-run": "node src/index.js --migrate --dry-run"
+  },
+  "keywords": ["movies", "jellyfin", "tmdb", "organizer"],
+  "author": "",
+  "license": "MIT"
+}
