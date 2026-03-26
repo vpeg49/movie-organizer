@@ -4,6 +4,7 @@ import { logger } from './logger.js'
 
 const VIDEO_EXTENSIONS = ['.mp4', '.mkv', '.avi', '.mov']
 const IGNORE_DIRS = ['___futbol', '__futbol', 'futbol']
+const SUBTITLE_LANGS = ['es', 'en', 'fr', 'it', 'de', 'pt']
 
 /**
  * Extrae título y año del nombre del archivo
@@ -36,12 +37,30 @@ function cleanTitle(raw) {
 }
 
 /**
- * Busca el .srt con el mismo nombre base que el video
+ * Busca todos los subtítulos asociados al video
+ * Prioridad: Movie.es.srt, Movie.en.srt, ... → Movie.srt (default es)
+ * Si ya encontró .es.srt explícito, ignora el .srt pelón
+ * Retorna array: [{ srtPath, srtLang }, ...]
  */
-function findSrt(directory, videoFilename) {
+function findSrts(directory, videoFilename) {
   const baseName = path.parse(videoFilename).name
-  const srtPath = path.join(directory, `${baseName}.srt`)
-  return fs.existsSync(srtPath) ? srtPath : null
+  const found = []
+
+  // Busca con código de idioma explícito
+  for (const lang of SUBTITLE_LANGS) {
+    const srtPath = path.join(directory, `${baseName}.${lang}.srt`)
+    if (fs.existsSync(srtPath)) found.push({ srtPath, srtLang: lang })
+  }
+
+  // Busca .srt pelón → asume español por default
+  // Solo si no encontró ya un .es.srt explícito
+  const plainSrt = path.join(directory, `${baseName}.srt`)
+  const alreadyHasEs = found.some(s => s.srtLang === 'es')
+  if (fs.existsSync(plainSrt) && !alreadyHasEs) {
+    found.push({ srtPath: plainSrt, srtLang: 'es' })
+  }
+
+  return found
 }
 
 /**
@@ -83,7 +102,7 @@ export function scanDirectory(dirPath) {
         title,
         year,
         extension: ext,
-        srtPath: findSrt(currentPath, entry.name)
+        subtitles: findSrts(currentPath, entry.name)
       })
     }
   }

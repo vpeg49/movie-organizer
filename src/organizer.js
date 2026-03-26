@@ -7,30 +7,33 @@ import { logger } from './logger.js'
  * "Demolition Man (1993)"
  */
 function buildCleanName(tmdbData, movie) {
-  if (tmdbData?.title && tmdbData?.year) {
-    return `${tmdbData.title} (${tmdbData.year})`
-      .replace(/[/\\?%*:|"<>]/g, '')
-      .trim()
+  if (tmdbData?.year) {
+    const title = tmdbData.englishTitle || tmdbData.originalTitle || tmdbData.title
+    if (title) {
+      return `${title} (${tmdbData.year})`
+        .replace(/[/\\?%*:|"<>]/g, '')
+        .trim()
+    }
   }
   return `${movie.title} ${movie.year ? `(${movie.year})` : ''}`.trim()
 }
 
 /**
- * Mueve el video y su .srt al directorio destino
+ * Mueve el video y todos sus subtítulos al directorio destino
  * según el género primario obtenido de TMDB
+ * Cada subtítulo se renombra con su código de idioma: .es.srt, .en.srt, etc.
  */
 export function moveMovie(movie, tmdbData, destBase, dryRun = true) {
   const genre = tmdbData?.primaryGenre || 'sin-clasificar'
   const destDir = path.join(destBase, genre)
   const cleanName = buildCleanName(tmdbData, movie)
   const destVideo = path.join(destDir, `${cleanName}${movie.extension}`)
-  const destSrt = movie.srtPath
-    ? path.join(destDir, `${cleanName}.srt`)
-    : null
 
   if (dryRun) {
     logger.dim(`[DRY RUN] ${genre}/${cleanName}${movie.extension}`)
-    if (destSrt) logger.dim(`[DRY RUN] ${genre}/${cleanName}.srt`)
+    for (const sub of movie.subtitles) {
+      logger.dim(`[DRY RUN] ${genre}/${cleanName}.${sub.srtLang}.srt`)
+    }
     return { success: true, dryRun: true, destVideo, genre }
   }
 
@@ -44,8 +47,9 @@ export function moveMovie(movie, tmdbData, destBase, dryRun = true) {
     fs.mkdirSync(destDir, { recursive: true })
     fs.renameSync(movie.fullPath, destVideo)
 
-    if (movie.srtPath && destSrt) {
-      fs.renameSync(movie.srtPath, destSrt)
+    for (const sub of movie.subtitles) {
+      const destSrt = path.join(destDir, `${cleanName}.${sub.srtLang}.srt`)
+      fs.renameSync(sub.srtPath, destSrt)
     }
 
     return { success: true, dryRun: false, destVideo, genre }
